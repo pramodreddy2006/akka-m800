@@ -12,6 +12,7 @@ import com.akka.logprocessor.Aggregator.Start;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.actor.Terminated;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
@@ -44,34 +45,35 @@ public class FileParser extends AbstractActor {
 	}
 
 	private void line(String s) {
-		aggregator.tell(new Line(s), getSelf());
+		aggregator.forward(new Line(s), getContext());
 	}
 
-	//#parse - Parses file invokes aggregator with commands
+	// #parse - Parses file invokes aggregator with commands
 	private void parse(Parser parser) throws Exception {
 		log.debug("In parse for file {}", filePath);
+		// watch aggregator actor for this file
+		getContext().watch(aggregator);
 		try {
 			try (Stream<String> stream = Files.lines(path)) {
-				aggregator.tell(new Start(), getSelf());
+				aggregator.forward(new Start(), getContext());
 				stream.forEach(this::line);
 			}
-			aggregator.tell(new End(), getSelf());
+			aggregator.forward(new End(), getContext());
 		} catch (Exception e) {
 			log.error("Error reading file" + path.getFileName());
-			throw e;
+			getContext().stop(getSelf());
 		}
 	}
-	
-	//#stop - Stops FileParser actor once file is processed.
-	private void stop(Stop stop) {
-		log.debug("Stop FileParser actor for file {}", filePath);
+
+	// #onTerminated - Stops FileParser actor once aggregator stops.
+	private void onTerminated(Terminated t) {
 		getContext().stop(getSelf());
 	}
 
 	@Override
 	public Receive createReceive() {
 		log.debug("parse request recieved");
-		return receiveBuilder().match(Parser.class, this::parse).match(Stop.class, this::stop).build();
+		return receiveBuilder().match(Parser.class, this::parse).match(Terminated.class, this::onTerminated).build();
 	}
 
 }

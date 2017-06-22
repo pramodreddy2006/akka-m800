@@ -3,12 +3,9 @@ package com.akka.logprocessor;
 import java.util.Optional;
 
 import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-
-import com.akka.logprocessor.FileParser.*;
 
 public class Aggregator extends AbstractActor {
 
@@ -44,34 +41,34 @@ public class Aggregator extends AbstractActor {
 		}
 	}
 
-	//#onStart
+	// #onStart
 	private void onStart(Start start) {
 		wordCount = Optional.of(0);
 	}
 
-	//#onLine - counts words in a file.
+	// #onLine - counts words in a file.
 	private void onLine(Line line) throws Exception {
-		if(wordCount.isPresent() && line.line != null){
+		if (wordCount.isPresent() && line.line != null) {
 			int lineCount = line.line.split(" ").length;
 			wordCount = Optional.of(wordCount.get() + lineCount);
 		} else {
-		    log.error("Aggregator actor for file {} has encountered exception", fileName);
-		    getContext().stop(getSelf());
-		    getContext().getParent().tell(new Stop(), ActorRef.noSender());
+			log.error("Aggregator actor for file {} has encountered exception", fileName);
+			getContext().stop(getSelf());
 			throw new Exception("Error counting words");
 		}
 	}
 
-	//#onEnd - prints words count in a file.
+	// #onEnd - prints words count in a file.
 	private void onEnd(End end) {
-		if(wordCount.isPresent()){
-			System.out.println(fileName + " word count: " + wordCount.get());
+		if (wordCount.isPresent()) {
+			//System.out.println(fileName + " word count: " + wordCount.get());
+			log.info("Word count in file {} : {}", fileName, wordCount.get());
 		} else {
 			log.error("Error countng words in file {}", fileName);
 		}
 		log.debug("Stop Aggregator actor for file {}", fileName);
 		getContext().stop(getSelf());
-		getContext().getParent().tell(new Stop(), ActorRef.noSender());
+		getSender().tell(wordCount, getSelf());
 	}
 
 	@Override
