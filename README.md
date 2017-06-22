@@ -2,6 +2,7 @@
 akka assignment
 
 Build with maven, on success you will find log-processor.jar in target folder. Run below command.
+
 java -jar log-processor.jar <directory-path-with-files>
 
 
